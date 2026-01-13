@@ -171,12 +171,38 @@
       background: #0a0a0a;
     }
 
+    button.active {
+      background: #ffffff;
+      color: #0a0a0a;
+      border: 1px solid #0a0a0a;
+    }
+
     .canvas-container {
       background: #ffffff;
       border: 1px solid #e5e5e5;
       padding: 0;
       margin-bottom: 16px;
       position: relative;
+      display: flex;
+    }
+
+    .freq-scale {
+      width: 60px;
+      background: #fafafa;
+      border-right: 1px solid #e5e5e5;
+      padding: 8px 4px;
+      font-size: 10px;
+      color: #6b7280;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      text-align: right;
+    }
+
+    .canvas-wrapper {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
     }
 
     canvas {
@@ -273,7 +299,7 @@
 
     <div class="upload-section">
       <div class="file-input-wrapper">
-        <input type="file" id="audioFile">
+        <input type="file" id="audioFile" accept="*/*">
         <label for="audioFile" class="file-input-label">
           Choose Audio File
         </label>
@@ -282,7 +308,10 @@
     </div>
 
     <div class="canvas-container">
-      <canvas id="canvas" width="1200" height="300"></canvas>
+      <div class="freq-scale" id="freqScale"></div>
+      <div class="canvas-wrapper">
+        <canvas id="canvas" width="1200" height="300"></canvas>
+      </div>
       <div class="controls-bottom">
         <div class="progress-bar">
           <div class="progress-fill" id="progressFill"></div>
@@ -305,16 +334,16 @@
         </div>
         <div class="inline-controls">
           <div class="control-item">
-            <label>Volume: <span id="volumeVal">100</span>%</label>
-            <input type="range" id="volume" min="0" max="100" value="100">
-          </div>
-          <div class="control-item">
             <label>Speed: <span id="rateVal">1.0</span>x</label>
             <input type="range" id="playbackRate" min="0.25" max="2" step="0.25" value="1">
           </div>
           <div class="control-item">
             <label>Zoom: <span id="zoomVal">1.0</span>x</label>
             <input type="range" id="zoom" min="1" max="10" step="0.5" value="1">
+          </div>
+          <div class="control-item">
+            <label>Freq Scale: <span id="freqScaleVal">100</span></label>
+            <input type="range" id="freqScale" min="10" max="200" value="100">
           </div>
         </div>
       </div>
@@ -327,7 +356,7 @@
             <select id="displayMode">
               <option value="waveform">Waveform</option>
               <option value="frequency">Frequency</option>
-              <option value="spectrogram">Spectrogram</option>
+              <option value="spectrogram" selected>Spectrogram</option>
             </select>
           </div>
           <div class="control-item">
@@ -388,15 +417,18 @@
     const zoomSlider = document.getElementById('zoom');
     const fftSizeSelect = document.getElementById('fftSize');
     const seekBar = document.getElementById('seekBar');
+    const freqScaleSlider = document.getElementById('freqScale');
 
     canvas = document.getElementById('canvas');
     ctx = canvas.getContext('2d');
+
+    let fullSpectrogramData = [];
+    let spectrogramScrollOffset = 0;
 
     fileInput.addEventListener('change', loadAudio);
     playBtn.addEventListener('click', play);
     pauseBtn.addEventListener('click', pause);
     stopBtn.addEventListener('click', stop);
-    volumeSlider.addEventListener('input', updateVolume);
     playbackRateSlider.addEventListener('input', updatePlaybackRate);
     filterTypeSelect.addEventListener('change', updateFilter);
     filterFreqSlider.addEventListener('input', updateFilter);
@@ -405,6 +437,7 @@
     zoomSlider.addEventListener('input', draw);
     fftSizeSelect.addEventListener('change', updateFFTSize);
     seekBar.addEventListener('input', seek);
+    freqScaleSlider.addEventListener('input', updateFreqScale);
 
     canvas.addEventListener('click', (e) => {
       if (!audioBuffer) return;
@@ -412,10 +445,6 @@
       const x = e.clientX - rect.left;
       const percent = x / canvas.width;
       seekTo(percent);
-    });
-
-    volumeSlider.addEventListener('input', (e) => {
-      document.getElementById('volumeVal').textContent = e.target.value;
     });
 
     playbackRateSlider.addEventListener('input', (e) => {
@@ -432,6 +461,11 @@
 
     zoomSlider.addEventListener('input', (e) => {
       document.getElementById('zoomVal').textContent = e.target.value;
+    });
+
+    freqScaleSlider.addEventListener('input', (e) => {
+      document.getElementById('freqScaleVal').textContent = e.target.value;
+      updateFreqScale();
     });
 
     async function loadAudio(e) {
@@ -451,6 +485,7 @@
       
       updateAudioInfo();
       enableControls();
+      generateFullSpectrogram();
       draw();
     }
 
@@ -481,12 +516,133 @@
       stopBtn.disabled = false;
     }
 
+    async function generateFullSpectrogram() {
+      if (!audioBuffer) return;
+      
+      fullSpectrogramData = [];
+      
+      const offlineContext = new OfflineAudioContext(
+        1,
+        audioBuffer.length,
+        audioBuffer.sampleRate
+      );
+      
+      const offlineSource = offlineContext.createBufferSource();
+      offlineSource.buffer = audioBuffer;
+      
+      const offlineAnalyser = offlineContext.createAnalyser();
+      offlineAnalyser.fftSize = parseInt(fftSizeSelect.value);
+      
+      offlineSource.connect(offlineAnalyser);
+      offlineAnalyser.connect(offlineContext.destination);
+      
+      const bufferLength = offlineAnalyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      
+      const hopSize = 512;
+      const totalSamples = audioBuffer.length;
+      const numFrames = Math.floor(totalSamples / hopSize);
+      
+      const channelData = audioBuffer.getChannelData(0);
+      
+      for (let i = 0; i < numFrames; i++) {
+        const startSample = i * hopSize;
+        const endSample = Math.min(startSample + offlineAnalyser.fftSize, totalSamples);
+        
+        const frameData = channelData.slice(startSample, endSample);
+        
+        const fftData = calculateFFT(frameData, offlineAnalyser.fftSize);
+        fullSpectrogramData.push(fftData);
+      }
+      
+      updateFreqScale();
+    }
+    
+    function calculateFFT(samples, fftSize) {
+      const real = new Float32Array(fftSize);
+      const imag = new Float32Array(fftSize);
+      
+      for (let i = 0; i < samples.length; i++) {
+        real[i] = samples[i] * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / samples.length));
+      }
+      
+      fft(real, imag);
+      
+      const magnitudes = new Uint8Array(fftSize / 2);
+      for (let i = 0; i < fftSize / 2; i++) {
+        const magnitude = Math.sqrt(real[i] * real[i] + imag[i] * imag[i]);
+        magnitudes[i] = Math.min(255, magnitude * 500);
+      }
+      
+      return magnitudes;
+    }
+    
+    function fft(real, imag) {
+      const n = real.length;
+      if (n <= 1) return;
+      
+      const halfN = n / 2;
+      const evenReal = new Float32Array(halfN);
+      const evenImag = new Float32Array(halfN);
+      const oddReal = new Float32Array(halfN);
+      const oddImag = new Float32Array(halfN);
+      
+      for (let i = 0; i < halfN; i++) {
+        evenReal[i] = real[i * 2];
+        evenImag[i] = imag[i * 2];
+        oddReal[i] = real[i * 2 + 1];
+        oddImag[i] = imag[i * 2 + 1];
+      }
+      
+      fft(evenReal, evenImag);
+      fft(oddReal, oddImag);
+      
+      for (let k = 0; k < halfN; k++) {
+        const theta = -2 * Math.PI * k / n;
+        const cos = Math.cos(theta);
+        const sin = Math.sin(theta);
+        
+        const tReal = cos * oddReal[k] - sin * oddImag[k];
+        const tImag = cos * oddImag[k] + sin * oddReal[k];
+        
+        real[k] = evenReal[k] + tReal;
+        imag[k] = evenImag[k] + tImag;
+        real[k + halfN] = evenReal[k] - tReal;
+        imag[k + halfN] = evenImag[k] - tImag;
+      }
+    }
+
+    function updateFreqScale() {
+      const freqScaleDiv = document.getElementById('freqScale');
+      const scaleSteps = parseInt(freqScaleSlider.value);
+      const maxFreq = audioContext ? audioContext.sampleRate / 2 : 22050;
+      
+      freqScaleDiv.innerHTML = '';
+      
+      for (let i = 0; i <= scaleSteps; i++) {
+        const freq = (maxFreq / scaleSteps) * (scaleSteps - i);
+        const label = document.createElement('div');
+        
+        if (freq >= 1000) {
+          label.textContent = (freq / 1000).toFixed(1) + 'k';
+        } else {
+          label.textContent = freq.toFixed(0);
+        }
+        
+        freqScaleDiv.appendChild(label);
+      }
+    }
+
     function play() {
       if (!audioBuffer) return;
 
       if (source) {
         source.stop();
       }
+
+      playBtn.classList.add('active');
+      pauseBtn.classList.remove('active');
+      stopBtn.classList.remove('active');
 
       source = audioContext.createBufferSource();
       source.buffer = audioBuffer;
@@ -495,7 +651,7 @@
       analyser.fftSize = parseInt(fftSizeSelect.value);
 
       gainNode = audioContext.createGain();
-      gainNode.gain.value = volumeSlider.value / 100;
+      gainNode.gain.value = 0.8;
 
       filterNode = audioContext.createBiquadFilter();
       updateFilter();
@@ -527,6 +683,10 @@
         source.stop();
         isPlaying = false;
         cancelAnimationFrame(animationId);
+        
+        playBtn.classList.remove('active');
+        pauseBtn.classList.add('active');
+        stopBtn.classList.remove('active');
       }
     }
 
@@ -543,12 +703,18 @@
       document.getElementById('currentTime').textContent = '0:00';
       seekBar.value = 0;
       spectrogramData = [];
+      spectrogramScrollOffset = 0;
+      
+      playBtn.classList.remove('active');
+      pauseBtn.classList.remove('active');
+      stopBtn.classList.add('active');
+      
       draw();
     }
 
     function updateVolume() {
       if (gainNode) {
-        gainNode.gain.value = volumeSlider.value / 100;
+        gainNode.gain.value = 0.8;
       }
     }
 
@@ -606,6 +772,8 @@
       document.getElementById('progressFill').style.width = progress + '%';
       document.getElementById('currentTime').textContent = formatTime(currentTime);
       seekBar.value = progress;
+
+      spectrogramScrollOffset = (currentTime / audioBuffer.duration) * fullSpectrogramData.length;
 
       draw();
       animationId = requestAnimationFrame(visualize);
@@ -700,19 +868,16 @@
     }
 
     function drawSpectrogram() {
-      if (!analyser) return;
+      if (fullSpectrogramData.length === 0) return;
 
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      analyser.getByteFrequencyData(dataArray);
-
-      spectrogramData.push(Array.from(dataArray));
-      if (spectrogramData.length > canvas.width) {
-        spectrogramData.shift();
-      }
-
-      for (let x = 0; x < spectrogramData.length; x++) {
-        const column = spectrogramData[x];
+      const startFrame = Math.floor(spectrogramScrollOffset);
+      const endFrame = Math.min(startFrame + canvas.width, fullSpectrogramData.length);
+      
+      for (let x = 0; x < canvas.width; x++) {
+        const frameIndex = startFrame + x;
+        if (frameIndex >= fullSpectrogramData.length) break;
+        
+        const column = fullSpectrogramData[frameIndex];
         for (let y = 0; y < column.length && y < canvas.height; y++) {
           const value = column[y];
           const intensity = value / 255;
@@ -720,6 +885,16 @@
           ctx.fillStyle = `rgb(${gray}, ${gray}, ${gray})`;
           ctx.fillRect(x, canvas.height - y, 1, 1);
         }
+      }
+      
+      const playheadX = spectrogramScrollOffset - startFrame;
+      if (playheadX >= 0 && playheadX < canvas.width && isPlaying) {
+        ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(playheadX, 0);
+        ctx.lineTo(playheadX, canvas.height);
+        ctx.stroke();
       }
     }
 
