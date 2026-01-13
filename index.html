@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio Analyzer Pro</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #ffffff;
+      color: #0a0a0a;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 32px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #e5e5e5;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: #0a0a0a;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #6b7280;
+    }
+
+    .upload-section {
+      background: #fafafa;
+      border: 1px solid #e5e5e5;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .file-input-wrapper {
+      position: relative;
+      display: inline-block;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    .file-input-wrapper input[type="file"] {
+      position: absolute;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .file-input-label {
+      display: block;
+      padding: 12px 16px;
+      background: #0a0a0a;
+      color: #ffffff;
+      text-align: center;
+      font-size: 14px;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+
+    .file-input-label:hover {
+      background: #2a2a2a;
+    }
+
+    #fileName {
+      margin-top: 12px;
+      text-align: center;
+      color: #0a0a0a;
+      font-size: 13px;
+    }
+
+    .controls-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .control-panel {
+      background: #fafafa;
+      border: 1px solid #e5e5e5;
+      padding: 16px;
+    }
+
+    .control-panel h3 {
+      margin-bottom: 12px;
+      color: #0a0a0a;
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .control-item {
+      margin-bottom: 12px;
+    }
+
+    .control-item label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 12px;
+      color: #6b7280;
+      font-weight: 500;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 4px;
+      background: #e5e5e5;
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      background: #0a0a0a;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      background: #0a0a0a;
+      cursor: pointer;
+      border: none;
+    }
+
+    button {
+      background: #0a0a0a;
+      border: 1px solid #0a0a0a;
+      padding: 8px 16px;
+      color: white;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+      margin-right: 8px;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    button:hover {
+      background: #2a2a2a;
+    }
+
+    button:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    button:disabled:hover {
+      background: #0a0a0a;
+    }
+
+    .canvas-container {
+      background: #ffffff;
+      border: 1px solid #e5e5e5;
+      padding: 0;
+      margin-bottom: 16px;
+      position: relative;
+    }
+
+    canvas {
+      width: 100%;
+      height: auto;
+      display: block;
+      cursor: crosshair;
+    }
+
+    .controls-bottom {
+      padding: 12px 16px;
+      background: #fafafa;
+      border-top: 1px solid #e5e5e5;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: #e5e5e5;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #0a0a0a;
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+
+    .time-display {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    .info-panel {
+      background: #fafafa;
+      border: 1px solid #e5e5e5;
+      padding: 12px;
+      font-size: 12px;
+    }
+
+    .info-panel p {
+      margin: 4px 0;
+      color: #6b7280;
+    }
+
+    .info-panel strong {
+      color: #0a0a0a;
+      font-weight: 600;
+    }
+
+    select {
+      width: 100%;
+      padding: 8px;
+      background: #ffffff;
+      border: 1px solid #e5e5e5;
+      color: #0a0a0a;
+      font-size: 13px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .inline-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    @media (max-width: 768px) {
+      .controls-row {
+        grid-template-columns: 1fr;
+      }
+      .inline-controls {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Audio Analyzer</h1>
+      <p class="subtitle">Professional waveform and frequency analysis</p>
+    </header>
+
+    <div class="upload-section">
+      <div class="file-input-wrapper">
+        <input type="file" id="audioFile" accept="audio/*">
+        <label for="audioFile" class="file-input-label">
+          Choose Audio File
+        </label>
+      </div>
+      <div id="fileName"></div>
+    </div>
+
+    <div class="canvas-container">
+      <canvas id="canvas" width="1200" height="300"></canvas>
+      <div class="controls-bottom">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="time-display">
+          <span id="currentTime">0:00</span>
+          <span id="duration">0:00</span>
+        </div>
+        <input type="range" id="seekBar" min="0" max="100" value="0">
+      </div>
+    </div>
+
+    <div class="controls-row">
+      <div class="control-panel">
+        <h3>Playback</h3>
+        <div class="button-group">
+          <button id="playBtn" disabled>Play</button>
+          <button id="pauseBtn" disabled>Pause</button>
+          <button id="stopBtn" disabled>Stop</button>
+        </div>
+        <div class="inline-controls">
+          <div class="control-item">
+            <label>Volume: <span id="volumeVal">100</span>%</label>
+            <input type="range" id="volume" min="0" max="100" value="100">
+          </div>
+          <div class="control-item">
+            <label>Speed: <span id="rateVal">1.0</span>x</label>
+            <input type="range" id="playbackRate" min="0.25" max="2" step="0.25" value="1">
+          </div>
+          <div class="control-item">
+            <label>Zoom: <span id="zoomVal">1.0</span>x</label>
+            <input type="range" id="zoom" min="1" max="10" step="0.5" value="1">
+          </div>
+        </div>
+      </div>
+
+      <div class="control-panel">
+        <h3>Filter & Display</h3>
+        <div class="inline-controls">
+          <div class="control-item">
+            <label>Display Mode</label>
+            <select id="displayMode">
+              <option value="waveform">Waveform</option>
+              <option value="frequency">Frequency</option>
+              <option value="spectrogram">Spectrogram</option>
+            </select>
+          </div>
+          <div class="control-item">
+            <label>Filter Type</label>
+            <select id="filterType">
+              <option value="none">None</option>
+              <option value="lowpass">Lowpass</option>
+              <option value="highpass">Highpass</option>
+              <option value="bandpass">Bandpass</option>
+            </select>
+          </div>
+          <div class="control-item">
+            <label>FFT Size</label>
+            <select id="fftSize">
+              <option value="512">512</option>
+              <option value="1024">1024</option>
+              <option value="2048" selected>2048</option>
+              <option value="4096">4096</option>
+            </select>
+          </div>
+        </div>
+        <div class="inline-controls" style="margin-top: 12px;">
+          <div class="control-item">
+            <label>Frequency: <span id="freqVal">1000</span> Hz</label>
+            <input type="range" id="filterFreq" min="20" max="20000" value="1000">
+          </div>
+          <div class="control-item">
+            <label>Q: <span id="qVal">1.0</span></label>
+            <input type="range" id="filterQ" min="0.1" max="10" step="0.1" value="1">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-panel" id="audioInfo">
+      <p><strong>File:</strong> -</p>
+      <p><strong>Sample Rate:</strong> - | <strong>Channels:</strong> - | <strong>Duration:</strong> - | <strong>Peak Freq:</strong> - | <strong>Avg Amplitude:</strong> -</p>
+    </div>
+  </div>
+
+  <script>
+    let audioContext, analyser, source, audioBuffer, filterNode, gainNode;
+    let canvas, ctx, animationId;
+    let isPlaying = false;
+    let startTime = 0, pauseTime = 0;
+    let spectrogramData = [];
+
+    const fileInput = document.getElementById('audioFile');
+    const playBtn = document.getElementById('playBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const volumeSlider = document.getElementById('volume');
+    const playbackRateSlider = document.getElementById('playbackRate');
+    const filterTypeSelect = document.getElementById('filterType');
+    const filterFreqSlider = document.getElementById('filterFreq');
+    const filterQSlider = document.getElementById('filterQ');
+    const displayModeSelect = document.getElementById('displayMode');
+    const zoomSlider = document.getElementById('zoom');
+    const fftSizeSelect = document.getElementById('fftSize');
+    const seekBar = document.getElementById('seekBar');
+
+    canvas = document.getElementById('canvas');
+    ctx = canvas.getContext('2d');
+
+    fileInput.addEventListener('change', loadAudio);
+    playBtn.addEventListener('click', play);
+    pauseBtn.addEventListener('click', pause);
+    stopBtn.addEventListener('click', stop);
+    volumeSlider.addEventListener('input', updateVolume);
+    playbackRateSlider.addEventListener('input', updatePlaybackRate);
+    filterTypeSelect.addEventListener('change', updateFilter);
+    filterFreqSlider.addEventListener('input', updateFilter);
+    filterQSlider.addEventListener('input', updateFilter);
+    displayModeSelect.addEventListener('change', draw);
+    zoomSlider.addEventListener('input', draw);
+    fftSizeSelect.addEventListener('change', updateFFTSize);
+    seekBar.addEventListener('input', seek);
+
+    canvas.addEventListener('click', (e) => {
+      if (!audioBuffer) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const percent = x / canvas.width;
+      seekTo(percent);
+    });
+
+    volumeSlider.addEventListener('input', (e) => {
+      document.getElementById('volumeVal').textContent = e.target.value;
+    });
+
+    playbackRateSlider.addEventListener('input', (e) => {
+      document.getElementById('rateVal').textContent = e.target.value;
+    });
+
+    filterFreqSlider.addEventListener('input', (e) => {
+      document.getElementById('freqVal').textContent = e.target.value;
+    });
+
+    filterQSlider.addEventListener('input', (e) => {
+      document.getElementById('qVal').textContent = e.target.value;
+    });
+
+    zoomSlider.addEventListener('input', (e) => {
+      document.getElementById('zoomVal').textContent = e.target.value;
+    });
+
+    async function loadAudio(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      document.getElementById('fileName').textContent = `Loading: ${file.name}`;
+
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+
+      const arrayBuffer = await file.arrayBuffer();
+      audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+      document.getElementById('fileName').textContent = `✓ ${file.name}`;
+      
+      updateAudioInfo();
+      enableControls();
+      draw();
+    }
+
+    function updateAudioInfo() {
+      const info = document.getElementById('audioInfo');
+      const duration = audioBuffer.duration;
+      const sampleRate = audioBuffer.sampleRate;
+      const channels = audioBuffer.numberOfChannels;
+      
+      let sum = 0;
+      const data = audioBuffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) {
+        sum += Math.abs(data[i]);
+      }
+      const avgAmplitude = (sum / data.length * 100).toFixed(2);
+
+      info.innerHTML = `
+        <p><strong>File:</strong> ${fileInput.files[0].name}</p>
+        <p><strong>Sample Rate:</strong> ${sampleRate} Hz | <strong>Channels:</strong> ${channels} | <strong>Duration:</strong> ${formatTime(duration)} | <strong>Peak Freq:</strong> - | <strong>Avg Amplitude:</strong> ${avgAmplitude}%</p>
+      `;
+
+      document.getElementById('duration').textContent = formatTime(duration);
+    }
+
+    function enableControls() {
+      playBtn.disabled = false;
+      pauseBtn.disabled = false;
+      stopBtn.disabled = false;
+    }
+
+    function play() {
+      if (!audioBuffer) return;
+
+      if (source) {
+        source.stop();
+      }
+
+      source = audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = parseInt(fftSizeSelect.value);
+
+      gainNode = audioContext.createGain();
+      gainNode.gain.value = volumeSlider.value / 100;
+
+      filterNode = audioContext.createBiquadFilter();
+      updateFilter();
+
+      source.connect(filterNode);
+      filterNode.connect(gainNode);
+      gainNode.connect(analyser);
+      analyser.connect(audioContext.destination);
+
+      source.playbackRate.value = parseFloat(playbackRateSlider.value);
+
+      const offset = pauseTime || 0;
+      source.start(0, offset);
+      startTime = audioContext.currentTime - offset;
+      isPlaying = true;
+
+      source.onended = () => {
+        if (isPlaying) {
+          stop();
+        }
+      };
+
+      visualize();
+    }
+
+    function pause() {
+      if (source && isPlaying) {
+        pauseTime = audioContext.currentTime - startTime;
+        source.stop();
+        isPlaying = false;
+        cancelAnimationFrame(animationId);
+      }
+    }
+
+    function stop() {
+      if (source) {
+        source.stop();
+        source = null;
+      }
+      isPlaying = false;
+      pauseTime = 0;
+      startTime = 0;
+      cancelAnimationFrame(animationId);
+      document.getElementById('progressFill').style.width = '0%';
+      document.getElementById('currentTime').textContent = '0:00';
+      seekBar.value = 0;
+      spectrogramData = [];
+      draw();
+    }
+
+    function updateVolume() {
+      if (gainNode) {
+        gainNode.gain.value = volumeSlider.value / 100;
+      }
+    }
+
+    function updatePlaybackRate() {
+      if (source) {
+        source.playbackRate.value = parseFloat(playbackRateSlider.value);
+      }
+    }
+
+    function updateFilter() {
+      if (!filterNode) return;
+
+      const type = filterTypeSelect.value;
+      if (type === 'none') {
+        filterNode.type = 'allpass';
+      } else {
+        filterNode.type = type;
+        filterNode.frequency.value = parseFloat(filterFreqSlider.value);
+        filterNode.Q.value = parseFloat(filterQSlider.value);
+      }
+    }
+
+    function updateFFTSize() {
+      if (analyser) {
+        analyser.fftSize = parseInt(fftSizeSelect.value);
+      }
+    }
+
+    function seek(e) {
+      const percent = e.target.value / 100;
+      seekTo(percent);
+    }
+
+    function seekTo(percent) {
+      if (!audioBuffer) return;
+      
+      const wasPlaying = isPlaying;
+      if (isPlaying) {
+        pause();
+      }
+      
+      pauseTime = audioBuffer.duration * percent;
+      
+      if (wasPlaying) {
+        play();
+      }
+    }
+
+    function visualize() {
+      if (!isPlaying) return;
+
+      const currentTime = audioContext.currentTime - startTime;
+      const progress = (currentTime / audioBuffer.duration) * 100;
+      
+      document.getElementById('progressFill').style.width = progress + '%';
+      document.getElementById('currentTime').textContent = formatTime(currentTime);
+      seekBar.value = progress;
+
+      draw();
+      animationId = requestAnimationFrame(visualize);
+    }
+
+    function draw() {
+      if (!audioBuffer) return;
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const mode = displayModeSelect.value;
+
+      if (mode === 'waveform') {
+        drawWaveform();
+      } else if (mode === 'frequency') {
+        drawFrequency();
+      } else if (mode === 'spectrogram') {
+        drawSpectrogram();
+      }
+    }
+
+    function drawWaveform() {
+      const zoom = parseFloat(zoomSlider.value);
+      const data = audioBuffer.getChannelData(0);
+      const amp = canvas.height / 2;
+
+      ctx.strokeStyle = '#e5e5e5';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, amp);
+      ctx.lineTo(canvas.width, amp);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#0a0a0a';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+
+      const currentTime = isPlaying ? audioContext.currentTime - startTime : pauseTime;
+      const startSample = Math.floor((currentTime / audioBuffer.duration) * data.length);
+      const samplesPerPixel = Math.floor(data.length / canvas.width / zoom);
+
+      for (let i = 0; i < canvas.width; i++) {
+        const index = startSample + i * samplesPerPixel;
+        if (index >= data.length) break;
+        
+        const x = i;
+        const y = amp + data[index] * amp * 0.9;
+        
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+
+      ctx.stroke();
+    }
+
+    function drawFrequency() {
+      if (!analyser) return;
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      analyser.getByteFrequencyData(dataArray);
+
+      const barWidth = canvas.width / bufferLength * 2;
+      let x = 0;
+
+      let maxFreq = 0;
+      let maxIndex = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        const barHeight = (dataArray[i] / 255) * canvas.height;
+        
+        ctx.fillStyle = '#0a0a0a';
+        ctx.fillRect(x, canvas.height - barHeight, barWidth - 1, barHeight);
+
+        if (dataArray[i] > maxFreq) {
+          maxFreq = dataArray[i];
+          maxIndex = i;
+        }
+
+        x += barWidth;
+      }
+
+      const peakFreq = (maxIndex * audioContext.sampleRate) / (analyser.fftSize * 2);
+      const info = document.getElementById('audioInfo');
+      const currentHTML = info.innerHTML;
+      const updatedHTML = currentHTML.replace(/<strong>Peak Freq:<\/strong> -/, `<strong>Peak Freq:</strong> ${peakFreq.toFixed(0)} Hz`);
+      info.innerHTML = updatedHTML;
+    }
+
+    function drawSpectrogram() {
+      if (!analyser) return;
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      analyser.getByteFrequencyData(dataArray);
+
+      spectrogramData.push(Array.from(dataArray));
+      if (spectrogramData.length > canvas.width) {
+        spectrogramData.shift();
+      }
+
+      for (let x = 0; x < spectrogramData.length; x++) {
+        const column = spectrogramData[x];
+        for (let y = 0; y < column.length && y < canvas.height; y++) {
+          const value = column[y];
+          const intensity = value / 255;
+          const gray = Math.floor(intensity * 255);
+          ctx.fillStyle = `rgb(${gray}, ${gray}, ${gray})`;
+          ctx.fillRect(x, canvas.height - y, 1, 1);
+        }
+      }
+    }
+
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+  </script>
+</body>
+</html>
